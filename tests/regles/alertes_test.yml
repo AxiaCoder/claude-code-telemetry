@@ -135,11 +135,70 @@ tests:
               canal: alertes
             exp_annotations:
               resume: "le quota Codex ne se collecte plus"
-              geste: "lire le log de hermes.py — jeton d'Hermès expiré ou usage refusé"
+              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
       - eval_time: 40m
         groupname: collectes
         alertname: CollecteConsoHermes
         exp_alerts: []
+
+  - name: CollecteQuotaCodex fires on a refused usage call while the token is still valid
+    interval: 1m
+    input_series:
+      - series: "hermes_quota_collecte_ok"
+        values: "0x60"
+      - series: "hermes_jeton_expire_dans"
+        values: "3600-60x60"
+    alert_rule_test:
+      - eval_time: 40m
+        groupname: collectes
+        alertname: CollecteQuotaCodex
+        exp_alerts:
+          - exp_labels:
+              alertgroup: collectes
+              alertname: CollecteQuotaCodex
+              famille: collectes
+              canal: alertes
+            exp_annotations:
+              resume: "le quota Codex ne se collecte plus"
+              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
+
+  - name: CollecteQuotaCodex stays silent while the token has been expired for less than 26 hours
+    interval: 1m
+    input_series:
+      - series: "hermes_quota_collecte_ok"
+        values: "0x120"
+      - series: "hermes_jeton_expire_dans"
+        values: "-60-60x120"
+    alert_rule_test:
+      - eval_time: 90m
+        groupname: collectes
+        alertname: CollecteQuotaCodex
+        exp_alerts: []
+
+  - name: CollecteQuotaCodex fires once the token has been expired for more than 26 hours
+    interval: 1m
+    input_series:
+      - series: "hermes_quota_collecte_ok"
+        values: "0x60"
+      - series: "hermes_jeton_expire_dans"
+        values: "-93000-60x60"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: collectes
+        alertname: CollecteQuotaCodex
+        exp_alerts: []
+      - eval_time: 45m
+        groupname: collectes
+        alertname: CollecteQuotaCodex
+        exp_alerts:
+          - exp_labels:
+              alertgroup: collectes
+              alertname: CollecteQuotaCodex
+              famille: collectes
+              canal: alertes
+            exp_annotations:
+              resume: "le quota Codex ne se collecte plus"
+              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
 
   - name: QuotaCodexHebdo fires at 80 percent, not below
     interval: 1m

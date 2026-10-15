@@ -52,14 +52,14 @@ groups:
           geste: "lire le log de quota.py — jeton expiré ou endpoint changé"
 
       - alert: CollecteQuotaCodex
-        expr: max(hermes_quota_collecte_ok) == 0
+        expr: max(hermes_quota_collecte_ok) == 0 unless on() (max(hermes_jeton_expire_dans) < 0 > -93600)
         for: 30m
         labels:
           famille: collectes
           canal: alertes
         annotations:
           resume: "le quota Codex ne se collecte plus"
-          geste: "lire le log de hermes.py — jeton d'Hermès expiré ou usage refusé"
+          geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
 
       - alert: CollecteConsoHermes
         expr: max(hermes_conso_collecte_ok) == 0
