@@ -32,6 +32,8 @@ receivers:
         send_resolved: true
         message_text: '{{ template "maison.texte" . }}'
         title: ''
+        color: ''
+        fallback: ''
 
   - name: slack-urgent
     slack_configs:
