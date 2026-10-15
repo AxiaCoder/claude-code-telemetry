@@ -52,14 +52,17 @@ groups:
           geste: "lire le log de quota.py — jeton expiré ou endpoint changé"
 
       - alert: CollecteQuotaCodex
-        expr: max(hermes_quota_collecte_ok) == 0
+        # Muette tant que le jeton est expire depuis moins de 26 h (93 600 s) : Hermes le
+        # renouvelle a son prochain appel, et son cron de 9 h en garantit un par jour.
+        # `< 0 > -93600` filtre deux fois la meme valeur : expire, mais depuis moins de 26 h.
+        expr: max(hermes_quota_collecte_ok) == 0 unless on() (max(hermes_jeton_expire_dans) < 0 > -93600)
         for: 30m
         labels:
           famille: collectes
           canal: alertes
         annotations:
           resume: "le quota Codex ne se collecte plus"
-          geste: "lire le log de hermes.py — jeton d'Hermès expiré ou usage refusé"
+          geste: "lire le log de hermes.py — usage refusé, jeton illisible, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
 
       - alert: CollecteConsoHermes
         expr: max(hermes_conso_collecte_ok) == 0
