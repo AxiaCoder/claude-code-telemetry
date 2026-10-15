@@ -30,10 +30,10 @@ receivers:
             credentials_file: /etc/alertmanager/maison/local/slack-token
         channel: '{{ template "canal.alertes" . }}'
         send_resolved: true
+        message_text: '{{ template "maison.texte" . }}'
         title: ''
-        text: '{{ template "maison.texte" . }}'
-        fallback: '{{ template "maison.texte" . }}'
-        color: '{{ template "maison.couleur" . }}'
+        color: ''
+        fallback: ''
 
   - name: slack-urgent
     slack_configs:
