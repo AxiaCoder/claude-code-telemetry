@@ -20,7 +20,3 @@
 {{ range $i, $alerte := .Alerts }}{{ if $i }}
 {{ end }}{{ template "maison.ligne" $alerte }}{{ end }}
 {{- end }}
-
-{{ define "maison.couleur" -}}
-{{ if eq .Status "resolved" }}good{{ else if eq .CommonLabels.canal "urgent" }}danger{{ else }}warning{{ end }}
-{{- end }}
