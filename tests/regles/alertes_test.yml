@@ -135,7 +135,7 @@ tests:
               canal: alertes
             exp_annotations:
               resume: "le quota Codex ne se collecte plus"
-              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
+              geste: "lire le log de hermes.py — usage refusé, jeton illisible, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
       - eval_time: 40m
         groupname: collectes
         alertname: CollecteConsoHermes
@@ -160,7 +160,7 @@ tests:
               canal: alertes
             exp_annotations:
               resume: "le quota Codex ne se collecte plus"
-              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
+              geste: "lire le log de hermes.py — usage refusé, jeton illisible, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
 
   - name: CollecteQuotaCodex stays silent while the token has been expired for less than 26 hours
     interval: 1m
@@ -198,7 +198,7 @@ tests:
               canal: alertes
             exp_annotations:
               resume: "le quota Codex ne se collecte plus"
-              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
+              geste: "lire le log de hermes.py — usage refusé, jeton illisible, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
 
   - name: CollecteQuotaCodex counts its 30 minutes from the 26-hour mark, not before
     interval: 1m
@@ -223,7 +223,7 @@ tests:
               canal: alertes
             exp_annotations:
               resume: "le quota Codex ne se collecte plus"
-              geste: "lire le log de hermes.py — usage refusé, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
+              geste: "lire le log de hermes.py — usage refusé, jeton illisible, ou jeton expiré depuis plus de 26 h : Hermès ne le renouvelle plus, `hermes login`"
 
   - name: QuotaCodexHebdo fires at 80 percent, not below
     interval: 1m
