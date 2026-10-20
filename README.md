@@ -15,8 +15,8 @@
 | Pièce | Port | Rôle |
 |---|---|---|
 | VictoriaMetrics | 8428 | reçoit l'OTLP, stocke (12 mois), répond à l'API de requête Prometheus |
-| Grafana | 3000 | lit VictoriaMetrics, affiche les dashboards du dépôt |
-| vmalert | — | évalue les règles de `alertes.yml` chaque minute |
+| Grafana | 3000 | lit VictoriaMetrics, affiche les dashboards du dépôt — et ceux des [services branchés](#brancher-un-service-externe) |
+| vmalert | — | évalue les règles de `alertes.yml` — et celles des services branchés — chaque minute |
 | Alertmanager | 9093 | groupe les alertes et les poste sur Slack |
 
 🔴 **VictoriaMetrics n'a aucune authentification.** Quiconque atteint le port 8428 peut lire vos
@@ -104,7 +104,9 @@ parc. Pour le vôtre : reprendre ces noms dans `OTEL_RESOURCE_ATTRIBUTES`, ou le
 JSON.
 
 Grafana est sur `http://<hôte>:3000`, les dashboards sont déjà provisionnés. Pour suivre le dépôt :
-`git pull`, Grafana recharge les fichiers tout seul.
+`git pull`, Grafana recharge les dashboards tout seul. ⚠️ `alertes.yml` et `alertmanager.yml` sont
+montés comme fichiers : après un `git pull` qui les modifie, `docker compose restart vmalert
+alertmanager`, sinon les conteneurs gardent l'ancienne version, sans erreur.
 
 ⚠️ **Installé avant le passage au nom `claude-code-telemetry` ?** Le compose fixe désormais le
 nom du projet ; avant, Docker prenait celui du dossier du clone et préfixait les volumes avec. Un
@@ -253,7 +255,9 @@ effacer ses séries (`/api/v1/admin/tsdb/delete_series`).
 
 Une règle dans `alertes.yml`, sur le modèle des autres : deux étiquettes, `famille` (le groupe du
 message) et `canal` (`alertes` ou `urgent`), deux annotations, `resume` et `geste`. Puis
-`docker compose restart vmalert`. Vérifier le fichier avant :
+`docker compose restart vmalert` : `alertes.yml` est monté comme fichier, et un `git pull` le
+remplace sans que le conteneur voie le nouveau — vmalert relirait l'ancien sans erreur. Vérifier le
+fichier avant :
 
 ```bash
 docker run --rm -v "$PWD":/r:ro victoriametrics/vmalert:v1.152.0 -dryRun -rule=/r/alertes.yml
@@ -354,6 +358,95 @@ Ils vivent dans `grafana/dashboards/*.json` et sont montés dans Grafana en lect
 **Pour en modifier un :** l'éditer dans l'UI, exporter le JSON (*Dashboard settings → JSON
 Model*), écraser le fichier, commiter, `git pull` sur le serveur. Grafana recharge les fichiers
 toutes les 30 secondes.
+
+---
+
+## Brancher un service externe
+
+Un service qui tourne sur le même serveur — une application, un worker, une tâche de fond — peut
+avoir ses propres dashboards et ses propres alertes **sans rien commiter ici** : ils restent dans
+son dépôt à lui, et ce dépôt-ci reste générique.
+
+**1. Dans le dépôt du service**, un dossier — le nom est libre — qui range ses fichiers :
+
+```
+mon-service/
+└── observabilite/
+    ├── dashboards/
+    │   └── file-d-attente.json   ← exporté depuis Grafana (Partager → Exporter → JSON)
+    └── alertes/
+        └── mon-service.yml       ← règles au même format que alertes.yml
+```
+
+⚠️ **À l'export, ne pas cocher « exporter pour une autre instance »** : Grafana remplace alors la
+source de données par des `${DS_…}` que le provisioning ne résout pas, et les panneaux restent
+vides. ⚠️ **Chaque dashboard porte un `uid` qui lui est propre** : deux JSON au même `uid` — un
+dashboard copié d'un autre — se disputent l'entrée, et Grafana n'en garde qu'un, en ne le disant que
+dans ses logs.
+
+**2. Dans le clone de ce dépôt sur le serveur**, un `docker-compose.override.yml`. Docker Compose
+le lit tout seul à côté de `docker-compose.yml`, et il est ignoré par git :
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+```
+
+```yaml
+services:
+  grafana:
+    volumes:
+      - type: bind
+        source: /srv/mon-service/observabilite/dashboards
+        target: /var/lib/grafana/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
+  vmalert:
+    volumes:
+      - type: bind
+        source: /srv/mon-service/observabilite/alertes
+        target: /etc/vmalert/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
+```
+
+`source` est le chemin du dépôt du service sur le serveur. Dans `target`, le dernier segment
+(`mon-service`) devient le nom du dossier dans Grafana. `create_host_path: false` fait échouer
+`docker compose up -d` sur un chemin faux, au lieu de créer un dossier vide et de démarrer sans
+rien charger.
+
+**3. `docker compose up -d`.** Grafana affiche :
+
+```
+Dashboards
+├── General              ← ceux de ce dépôt
+└── mon-service
+    └── File d'attente
+```
+
+Ses alertes partent sur Slack comme les autres — mêmes étiquettes `famille` et `canal`, mêmes
+annotations `resume` et `geste` (voir [Ajouter une alerte seuil](#ajouter-une-alerte-seuil)).
+
+**4. Ensuite**, on modifie le JSON ou les règles dans le dépôt du service, puis `git pull` sur le
+serveur : Grafana recharge les dashboards en 30 secondes, vmalert relit les règles chaque minute.
+Un service de plus, c'est deux montages de plus dans l'override — un sous `grafana`, un sous
+`vmalert`.
+
+⚠️ **vmalert ne lit que les fichiers `*.yml`** posés directement dans le dossier monté : un
+`.yaml`, ou un fichier dans un sous-dossier, est ignoré sans erreur.
+
+🔴 **Un fichier de règles invalide, chez un seul service, coupe toutes les alertes au prochain
+démarrage de vmalert** — celles de ce dépôt comprises. À chaud, vmalert refuse le rechargement et
+garde ses anciennes règles, sans rien poster ; mais au redémarrage suivant (serveur relancé,
+`docker compose up -d`), il refuse de démarrer, et plus rien ne prévient. Le mieux est de vérifier
+dans la CI du dépôt du service, avant le push ; à défaut, sur le serveur **juste après** le
+`git pull` — vmalert tourne encore sur ses anciennes règles —, et corriger avant tout redémarrage :
+
+```bash
+docker run --rm -v /srv/mon-service/observabilite/alertes:/r:ro victoriametrics/vmalert:v1.152.0 \
+  -dryRun '-rule=/r/*.yml'
+```
+
+📌 Sans override, l'emplacement externe est vide : la pile démarre et tourne comme avant.
 
 ---
 
