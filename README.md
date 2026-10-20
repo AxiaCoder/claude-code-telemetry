@@ -104,7 +104,9 @@ parc. Pour le vôtre : reprendre ces noms dans `OTEL_RESOURCE_ATTRIBUTES`, ou le
 JSON.
 
 Grafana est sur `http://<hôte>:3000`, les dashboards sont déjà provisionnés. Pour suivre le dépôt :
-`git pull`, Grafana recharge les fichiers tout seul.
+`git pull`, Grafana recharge les dashboards tout seul. ⚠️ `alertes.yml` et `alertmanager.yml` sont
+montés comme fichiers : après un `git pull` qui les modifie, `docker compose restart vmalert
+alertmanager`, sinon les conteneurs gardent l'ancienne version, sans erreur.
 
 ⚠️ **Installé avant le passage au nom `claude-code-telemetry` ?** Le compose fixe désormais le
 nom du projet ; avant, Docker prenait celui du dossier du clone et préfixait les volumes avec. Un
