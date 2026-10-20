@@ -252,8 +252,10 @@ effacer ses séries (`/api/v1/admin/tsdb/delete_series`).
 ### Ajouter une alerte seuil
 
 Une règle dans `alertes.yml`, sur le modèle des autres : deux étiquettes, `famille` (le groupe du
-message) et `canal` (`alertes` ou `urgent`), deux annotations, `resume` et `geste`. vmalert relit ses règles chaque minute,
-sans redémarrage. Vérifier le fichier avant :
+message) et `canal` (`alertes` ou `urgent`), deux annotations, `resume` et `geste`. Puis
+`docker compose restart vmalert` : `alertes.yml` est monté comme fichier, et un `git pull` le
+remplace sans que le conteneur voie le nouveau — vmalert relirait l'ancien sans erreur. Vérifier le
+fichier avant :
 
 ```bash
 docker run --rm -v "$PWD":/r:ro victoriametrics/vmalert:v1.152.0 -dryRun -rule=/r/alertes.yml
@@ -374,6 +376,12 @@ mon-service/
         └── mon-service.yml       ← règles au même format que alertes.yml
 ```
 
+⚠️ **À l'export, ne pas cocher « exporter pour une autre instance »** : Grafana remplace alors la
+source de données par des `${DS_…}` que le provisioning ne résout pas, et les panneaux restent
+vides. ⚠️ **Chaque dashboard porte un `uid` qui lui est propre** : deux JSON au même `uid` — un
+dashboard copié d'un autre — se disputent l'entrée, et Grafana n'en garde qu'un, en ne le disant que
+dans ses logs.
+
 **2. Dans le clone de ce dépôt sur le serveur**, un `docker-compose.override.yml`. Docker Compose
 le lit tout seul à côté de `docker-compose.yml`, et il est ignoré par git :
 
@@ -385,14 +393,24 @@ cp docker-compose.override.example.yml docker-compose.override.yml
 services:
   grafana:
     volumes:
-      - /srv/mon-service/observabilite/dashboards:/var/lib/grafana/externe/mon-service:ro
+      - type: bind
+        source: /srv/mon-service/observabilite/dashboards
+        target: /var/lib/grafana/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
   vmalert:
     volumes:
-      - /srv/mon-service/observabilite/alertes:/etc/vmalert/externe/mon-service:ro
+      - type: bind
+        source: /srv/mon-service/observabilite/alertes
+        target: /etc/vmalert/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
 ```
 
-À gauche, le chemin du dépôt du service sur le serveur. À droite, le dernier segment
-(`mon-service`) devient le nom du dossier dans Grafana.
+`source` est le chemin du dépôt du service sur le serveur. Dans `target`, le dernier segment
+(`mon-service`) devient le nom du dossier dans Grafana. `create_host_path: false` fait échouer
+`docker compose up -d` sur un chemin faux, au lieu de créer un dossier vide et de démarrer sans
+rien charger.
 
 **3. `docker compose up -d`.** Grafana affiche :
 
@@ -408,7 +426,7 @@ annotations `resume` et `geste` (voir [Ajouter une alerte seuil](#ajouter-une-al
 
 **4. Ensuite**, on modifie le JSON ou les règles dans le dépôt du service, puis `git pull` sur le
 serveur : Grafana recharge les dashboards en 30 secondes, vmalert relit les règles chaque minute.
-Un service de plus, c'est deux lignes de plus dans l'override — une sous `grafana`, une sous
+Un service de plus, c'est deux montages de plus dans l'override — un sous `grafana`, un sous
 `vmalert`.
 
 ⚠️ **vmalert ne lit que les fichiers `*.yml`** posés directement dans le dossier monté : un
@@ -417,8 +435,9 @@ Un service de plus, c'est deux lignes de plus dans l'override — une sous `graf
 🔴 **Un fichier de règles invalide, chez un seul service, coupe toutes les alertes au prochain
 démarrage de vmalert** — celles de ce dépôt comprises. À chaud, vmalert refuse le rechargement et
 garde ses anciennes règles, sans rien poster ; mais au redémarrage suivant (serveur relancé,
-`docker compose up -d`), il refuse de démarrer, et plus rien ne prévient. Vérifier le fichier
-avant le `git pull` :
+`docker compose up -d`), il refuse de démarrer, et plus rien ne prévient. Le mieux est de vérifier
+dans la CI du dépôt du service, avant le push ; à défaut, sur le serveur **juste après** le
+`git pull` — vmalert tourne encore sur ses anciennes règles —, et corriger avant tout redémarrage :
 
 ```bash
 docker run --rm -v /srv/mon-service/observabilite/alertes:/r:ro victoriametrics/vmalert:v1.152.0 \

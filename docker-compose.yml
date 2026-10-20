@@ -62,7 +62,8 @@ services:
       - "-notifier.url=http://alertmanager:9093"
       - "-rule=/etc/alertes.yml"
       - "-rule=/etc/vmalert/externe/*/*.yml"
-      # Relit les regles chaque minute : un git pull suffit, sans redemarrage.
+      # Relit les regles chaque minute. Ne voit que les dossiers montes (services
+      # externes) : alertes.yml, monte comme fichier, demande un restart apres git pull.
       - "-configCheckInterval=1m"
       - "-evaluationInterval=1m"
 

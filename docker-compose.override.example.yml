@@ -4,12 +4,22 @@
 #
 # puis remplacer /srv/mon-service par le chemin du depot du service sur ce serveur.
 # Le dernier segment de la cible (mon-service) devient le nom du dossier dans Grafana.
-# Un service de plus : une ligne de plus sous grafana, une sous vmalert.
+# create_host_path: false fait echouer docker compose up -d sur un chemin faux,
+# au lieu de creer un dossier vide et de demarrer sans rien charger.
+# Un service de plus : un montage de plus sous grafana, un sous vmalert.
 
 services:
   grafana:
     volumes:
-      - /srv/mon-service/observabilite/dashboards:/var/lib/grafana/externe/mon-service:ro
+      - type: bind
+        source: /srv/mon-service/observabilite/dashboards
+        target: /var/lib/grafana/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
   vmalert:
     volumes:
-      - /srv/mon-service/observabilite/alertes:/etc/vmalert/externe/mon-service:ro
+      - type: bind
+        source: /srv/mon-service/observabilite/alertes
+        target: /etc/vmalert/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
