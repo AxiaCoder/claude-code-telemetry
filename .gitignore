@@ -2,3 +2,6 @@
 __pycache__/
 # Canaux, gestes et jeton Slack de cette installation.
 alertmanager/local/
+
+# Branchement des services externes, propre a ce serveur.
+docker-compose.override.yml

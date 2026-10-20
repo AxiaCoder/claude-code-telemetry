@@ -15,8 +15,8 @@
 | Pièce | Port | Rôle |
 |---|---|---|
 | VictoriaMetrics | 8428 | reçoit l'OTLP, stocke (12 mois), répond à l'API de requête Prometheus |
-| Grafana | 3000 | lit VictoriaMetrics, affiche les dashboards du dépôt |
-| vmalert | — | évalue les règles de `alertes.yml` chaque minute |
+| Grafana | 3000 | lit VictoriaMetrics, affiche les dashboards du dépôt — et ceux des [services branchés](#brancher-un-service-externe) |
+| vmalert | — | évalue les règles de `alertes.yml` — et celles des services branchés — chaque minute |
 | Alertmanager | 9093 | groupe les alertes et les poste sur Slack |
 
 🔴 **VictoriaMetrics n'a aucune authentification.** Quiconque atteint le port 8428 peut lire vos
@@ -252,8 +252,8 @@ effacer ses séries (`/api/v1/admin/tsdb/delete_series`).
 ### Ajouter une alerte seuil
 
 Une règle dans `alertes.yml`, sur le modèle des autres : deux étiquettes, `famille` (le groupe du
-message) et `canal` (`alertes` ou `urgent`), deux annotations, `resume` et `geste`. Puis
-`docker compose restart vmalert`. Vérifier le fichier avant :
+message) et `canal` (`alertes` ou `urgent`), deux annotations, `resume` et `geste`. vmalert relit ses règles chaque minute,
+sans redémarrage. Vérifier le fichier avant :
 
 ```bash
 docker run --rm -v "$PWD":/r:ro victoriametrics/vmalert:v1.152.0 -dryRun -rule=/r/alertes.yml
@@ -354,6 +354,78 @@ Ils vivent dans `grafana/dashboards/*.json` et sont montés dans Grafana en lect
 **Pour en modifier un :** l'éditer dans l'UI, exporter le JSON (*Dashboard settings → JSON
 Model*), écraser le fichier, commiter, `git pull` sur le serveur. Grafana recharge les fichiers
 toutes les 30 secondes.
+
+---
+
+## Brancher un service externe
+
+Un service qui tourne sur le même serveur — une application, un worker, une tâche de fond — peut
+avoir ses propres dashboards et ses propres alertes **sans rien commiter ici** : ils restent dans
+son dépôt à lui, et ce dépôt-ci reste générique.
+
+**1. Dans le dépôt du service**, un dossier — le nom est libre — qui range ses fichiers :
+
+```
+mon-service/
+└── observabilite/
+    ├── dashboards/
+    │   └── file-d-attente.json   ← exporté depuis Grafana (Partager → Exporter → JSON)
+    └── alertes/
+        └── mon-service.yml       ← règles au même format que alertes.yml
+```
+
+**2. Dans le clone de ce dépôt sur le serveur**, un `docker-compose.override.yml`. Docker Compose
+le lit tout seul à côté de `docker-compose.yml`, et il est ignoré par git :
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+```
+
+```yaml
+services:
+  grafana:
+    volumes:
+      - /srv/mon-service/observabilite/dashboards:/var/lib/grafana/externe/mon-service:ro
+  vmalert:
+    volumes:
+      - /srv/mon-service/observabilite/alertes:/etc/vmalert/externe/mon-service:ro
+```
+
+À gauche, le chemin du dépôt du service sur le serveur. À droite, le dernier segment
+(`mon-service`) devient le nom du dossier dans Grafana.
+
+**3. `docker compose up -d`.** Grafana affiche :
+
+```
+Dashboards
+├── General              ← ceux de ce dépôt
+└── mon-service
+    └── File d'attente
+```
+
+Ses alertes partent sur Slack comme les autres — mêmes étiquettes `famille` et `canal`, mêmes
+annotations `resume` et `geste` (voir [Ajouter une alerte seuil](#ajouter-une-alerte-seuil)).
+
+**4. Ensuite**, on modifie le JSON ou les règles dans le dépôt du service, puis `git pull` sur le
+serveur : Grafana recharge les dashboards en 30 secondes, vmalert relit les règles chaque minute.
+Un service de plus, c'est deux lignes de plus dans l'override — une sous `grafana`, une sous
+`vmalert`.
+
+⚠️ **vmalert ne lit que les fichiers `*.yml`** posés directement dans le dossier monté : un
+`.yaml`, ou un fichier dans un sous-dossier, est ignoré sans erreur.
+
+🔴 **Un fichier de règles invalide, chez un seul service, coupe toutes les alertes au prochain
+démarrage de vmalert** — celles de ce dépôt comprises. À chaud, vmalert refuse le rechargement et
+garde ses anciennes règles, sans rien poster ; mais au redémarrage suivant (serveur relancé,
+`docker compose up -d`), il refuse de démarrer, et plus rien ne prévient. Vérifier le fichier
+avant le `git pull` :
+
+```bash
+docker run --rm -v /srv/mon-service/observabilite/alertes:/r:ro victoriametrics/vmalert:v1.152.0 \
+  -dryRun '-rule=/r/*.yml'
+```
+
+📌 Sans override, l'emplacement externe est vide : la pile démarre et tourne comme avant.
 
 ---
 

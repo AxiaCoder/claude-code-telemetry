@@ -41,6 +41,9 @@ services:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Emplacement des services externes : vide ici, rempli par docker-compose.override.yml.
+      - type: tmpfs
+        target: /var/lib/grafana/externe
 
   vmalert:
     image: victoriametrics/vmalert:v1.152.0
@@ -51,10 +54,16 @@ services:
       - alertmanager
     volumes:
       - ./alertes.yml:/etc/alertes.yml:ro
+      # Emplacement des services externes : vide ici, rempli par docker-compose.override.yml.
+      - type: tmpfs
+        target: /etc/vmalert/externe
     command:
       - "-datasource.url=http://victoriametrics:8428"
       - "-notifier.url=http://alertmanager:9093"
       - "-rule=/etc/alertes.yml"
+      - "-rule=/etc/vmalert/externe/*/*.yml"
+      # Relit les regles chaque minute : un git pull suffit, sans redemarrage.
+      - "-configCheckInterval=1m"
       - "-evaluationInterval=1m"
 
   alertmanager:
