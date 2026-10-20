@@ -1,3 +1,5 @@
+name: claude-code-telemetry
+
 services:
   victoriametrics:
     image: victoriametrics/victoria-metrics:latest

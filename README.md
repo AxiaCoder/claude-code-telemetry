@@ -1,4 +1,4 @@
-# home-server-telemetry
+# claude-code-telemetry
 
 > 🇫🇷 Où part le quota de Claude Code — et de Hermès —, sur toutes vos machines, en graphes. Deux
 > conteneurs sur un serveur maison : VictoriaMetrics reçoit l'OpenTelemetry natif de Claude Code,
@@ -91,8 +91,8 @@ pas une perte, c'est un décalage de lecture.
 pour les collecteurs.
 
 ```bash
-git clone https://github.com/AxiaCoder/home-server-telemetry.git
-cd home-server-telemetry
+git clone https://github.com/AxiaCoder/claude-code-telemetry.git
+cd claude-code-telemetry
 cp .env.example .env        # mot de passe admin de Grafana, et BIND_ADDR
 docker compose up -d
 ```
@@ -105,6 +105,37 @@ JSON.
 
 Grafana est sur `http://<hôte>:3000`, les dashboards sont déjà provisionnés. Pour suivre le dépôt :
 `git pull`, Grafana recharge les fichiers tout seul.
+
+⚠️ **Installé avant le passage au nom `claude-code-telemetry` ?** Le compose fixe désormais le
+nom du projet ; avant, Docker prenait celui du dossier du clone et préfixait les volumes avec. Un
+`git pull` suivi d'un `docker compose up -d` échouerait tant que l'ancienne pile tourne (réseau et
+noms de conteneurs déjà pris), et démarrerait sur des volumes **vides** une fois arrêtée. Copier
+d'abord les anciens — ils restent en place, à supprimer une fois l'historique vérifié dans Grafana.
+📌 Un clone dont le dossier s'appelle déjà `claude-code-telemetry` n'a rien à migrer : `git pull`
+suffit.
+
+D'abord deux contrôles, seuls : le premier doit trouver le volume (sinon `ANCIEN` est faux, et la
+copie partirait d'un volume vide créé pour l'occasion), le second ne doit rien lister. S'il liste
+des volumes, la pile a déjà démarré sous le nouveau nom et `cp` mélangerait les données : les
+retirer d'abord, `docker compose down` puis `docker volume rm` sur chacun.
+
+```bash
+ANCIEN=home-server-telemetry   # le nom du dossier du clone
+docker volume inspect "${ANCIEN}_vm-data" > /dev/null
+docker volume ls -q | grep '^claude-code-telemetry_'
+```
+
+Puis, les deux contrôles passés, la copie :
+
+```bash
+docker compose -p "$ANCIEN" down
+git pull
+docker compose up --no-start
+for v in vm-data grafana-data alertmanager-data; do
+  docker run --rm -v "${ANCIEN}_$v:/de:ro" -v "claude-code-telemetry_$v:/vers" alpine cp -a /de/. /vers/
+done
+docker compose up -d
+```
 
 ---
 
