@@ -111,8 +111,10 @@ nom du projet ; avant, Docker prenait celui du dossier du clone et préfixait le
 `git pull` suivi d'un `docker compose up -d` échouerait tant que l'ancienne pile tourne (réseau et
 noms de conteneurs déjà pris), et démarrerait sur des volumes **vides** une fois arrêtée. Copier
 d'abord les anciens — ils restent en place, à supprimer une fois l'historique vérifié dans Grafana.
+📌 Un clone dont le dossier s'appelle déjà `claude-code-telemetry` n'a rien à migrer : `git pull`
+suffit.
 
-Deux contrôles avant la copie : le premier doit trouver le volume (sinon `ANCIEN` est faux, et la
+D'abord deux contrôles, seuls : le premier doit trouver le volume (sinon `ANCIEN` est faux, et la
 copie partirait d'un volume vide créé pour l'occasion), le second ne doit rien lister. S'il liste
 des volumes, la pile a déjà démarré sous le nouveau nom et `cp` mélangerait les données : les
 retirer d'abord, `docker compose down` puis `docker volume rm` sur chacun.
@@ -121,7 +123,11 @@ retirer d'abord, `docker compose down` puis `docker volume rm` sur chacun.
 ANCIEN=home-server-telemetry   # le nom du dossier du clone
 docker volume inspect "${ANCIEN}_vm-data" > /dev/null
 docker volume ls -q | grep '^claude-code-telemetry_'
+```
 
+Puis, les deux contrôles passés, la copie :
+
+```bash
 docker compose -p "$ANCIEN" down
 git pull
 docker compose up --no-start
