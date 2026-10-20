@@ -11,7 +11,7 @@ services:
     networks:
       default:
         # Adresse fixe : un emetteur confine du serveur ne rouvre qu'elle.
-        ipv4_address: 172.28.84.10
+        ipv4_address: 10.84.84.10
     command:
       - "-storageDataPath=/victoria-metrics-data"
       - "-httpListenAddr=:8428"
@@ -75,9 +75,9 @@ networks:
   default:
     ipam:
       config:
-        - subnet: 172.28.84.0/24
+        - subnet: 10.84.84.0/24
           # Les autres conteneurs prennent leur adresse ici, jamais celle de VictoriaMetrics.
-          ip_range: 172.28.84.128/25
+          ip_range: 10.84.84.128/25
 
 volumes:
   vm-data:
