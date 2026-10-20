@@ -32,6 +32,14 @@ postes émettent, `BIND_ADDR` dans `.env` :
 | `0.0.0.0` | toutes les interfaces : machine, réseau local, VPN, conteneurs | un serveur maison **derrière un routeur sans redirection de port**. ⛔ Jamais sur un VPS : **Docker contourne `ufw`**, un pare-feu d'hôte ne protège pas |
 | l'IP d'une interface | ce réseau seul — ⚠️ **`localhost` ne répond plus** : les émetteurs du serveur lui-même doivent viser cette IP | un hôte exposé, en ne publiant que sur l'interface du VPN — ⚠️ elle doit exister quand Docker démarre, sinon la publication échoue au redémarrage |
 
+📌 **VictoriaMetrics a une adresse fixe, `172.28.84.10`**, sur le réseau de la pile
+(`172.28.84.0/24`) : un service du serveur confiné par systemd, qui refuse la machine et le réseau
+local (`IPAddressDeny=`), ne rouvre qu'elle (`IPAddressAllow=172.28.84.10`) et émet sur
+`http://172.28.84.10:8428/opentelemetry/v1/metrics`. Rouvrir `127.0.0.1` lui donnerait tout ce qui
+écoute sur la machine. ⚠️ Ce sous-réseau ne doit chevaucher aucun réseau existant
+(`docker network inspect`) ; le changer sur une pile qui tourne demande `docker compose down`
+puis `up -d` — les volumes, donc les données, restent.
+
 Le nom porte `home-server` parce qu'une télémétrie de projets en ligne n'aurait ni les mêmes
 contraintes ni la même pile.
 
