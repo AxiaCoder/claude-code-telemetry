@@ -39,7 +39,14 @@ services:
       GF_DATE_FORMATS_DEFAULT_WEEK_START: "monday"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      # Sources de donnees : celle de la pile, plus celles des services externes que
+      # docker-compose.override.yml monte fichier par fichier a cote d'elle. Grafana
+      # ne lit pas les sous-dossiers de ce dossier, d'ou un tmpfs plutot qu'un dossier
+      # "externe".
+      - type: tmpfs
+        target: /etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/datasources/victoriametrics.yml:/etc/grafana/provisioning/datasources/victoriametrics.yml:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       # Emplacement des services externes : vide ici, rempli par docker-compose.override.yml.
       - type: tmpfs

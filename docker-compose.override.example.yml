@@ -7,15 +7,27 @@
 # create_host_path: false fait echouer docker compose up -d sur un chemin faux,
 # au lieu de creer un dossier vide et de demarrer sans rien charger.
 # Un service de plus : un montage de plus sous grafana, un sous vmalert.
+#
+# Un service qui apporte sa source de donnees (un fichier de provisioning) la monte
+# fichier par fichier dans /etc/grafana/provisioning/datasources ; s'il lui faut un
+# plugin, GF_PLUGINS_PREINSTALL le nomme, a une version fixe. Deux services avec
+# chacun le sien : une seule ligne, les plugins separes par des virgules.
 
 services:
   grafana:
+    # environment:
+    #   GF_PLUGINS_PREINSTALL: mon-plugin@1.2.3
     volumes:
       - type: bind
         source: /srv/mon-service/observabilite/dashboards
         target: /var/lib/grafana/externe/mon-service
         read_only: true
         bind: { create_host_path: false }
+      # - type: bind
+      #   source: /srv/mon-service/observabilite/sources/mon-service.yml
+      #   target: /etc/grafana/provisioning/datasources/mon-service.yml
+      #   read_only: true
+      #   bind: { create_host_path: false }
   vmalert:
     volumes:
       - type: bind

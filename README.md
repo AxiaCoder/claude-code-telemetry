@@ -446,6 +446,32 @@ docker run --rm -v /srv/mon-service/observabilite/alertes:/r:ro victoriametrics/
   -dryRun '-rule=/r/*.yml'
 ```
 
+**Une source de données à soi.** Un service dont les dashboards lisent autre chose que
+VictoriaMetrics — une base SQLite, par exemple — apporte aussi le fichier de provisioning de sa
+source, et le plugin qu'elle demande :
+
+```yaml
+services:
+  grafana:
+    environment:
+      GF_PLUGINS_PREINSTALL: mon-plugin@1.2.3
+    volumes:
+      - type: bind
+        source: /srv/mon-service/observabilite/sources/mon-service.yml
+        target: /etc/grafana/provisioning/datasources/mon-service.yml
+        read_only: true
+        bind: { create_host_path: false }
+```
+
+Le fichier se monte **seul**, à côté de celui de VictoriaMetrics : Grafana ne lit pas les
+sous-dossiers de `provisioning/datasources`, un dossier monté serait ignoré sans erreur. Le plugin
+porte une version fixe, comme les images de la pile ; Grafana le télécharge au démarrage. Deux
+services qui ont chacun le leur partagent une seule ligne, les plugins séparés par des virgules.
+
+⚠️ **Chaque source porte un `uid` qui lui est propre**, et ne le change plus : ses dashboards s'y
+réfèrent, et Grafana refuse de changer l'uid d'une source déjà provisionnée (le conteneur boucle au
+démarrage — voir `victoriametrics.yml`).
+
 📌 Sans override, l'emplacement externe est vide : la pile démarre et tourne comme avant.
 
 ---
