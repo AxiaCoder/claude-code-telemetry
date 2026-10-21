@@ -28,6 +28,12 @@ services:
       #   target: /etc/grafana/provisioning/datasources/mon-service.yml
       #   read_only: true
       #   bind: { create_host_path: false }
+      # Ce que cette source lit, quand c'est un fichier du serveur (une base SQLite) :
+      # - type: bind
+      #   source: /var/lib/mon-service
+      #   target: /var/lib/mon-service
+      #   read_only: true
+      #   bind: { create_host_path: false }
   vmalert:
     volumes:
       - type: bind

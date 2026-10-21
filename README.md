@@ -461,11 +461,19 @@ services:
         target: /etc/grafana/provisioning/datasources/mon-service.yml
         read_only: true
         bind: { create_host_path: false }
+      # Ce que la source lit, quand c'est un fichier du serveur : le dossier, pas le
+      # fichier, pour qu'une base remplacée par un renommage reste vue.
+      - type: bind
+        source: /var/lib/mon-service
+        target: /var/lib/mon-service
+        read_only: true
+        bind: { create_host_path: false }
 ```
 
 Le fichier se monte **seul**, à côté de celui de VictoriaMetrics : Grafana ne lit pas les
 sous-dossiers de `provisioning/datasources`, un dossier monté serait ignoré sans erreur. Le plugin
-porte une version fixe, comme les images de la pile ; Grafana le télécharge au démarrage. Deux
+porte une version fixe, sans quoi une mise à jour du plugin peut changer les dashboards sans
+qu'aucun dépôt ait bougé ; Grafana le télécharge au démarrage. Deux
 services qui ont chacun le leur partagent une seule ligne, les plugins séparés par des virgules.
 
 ⚠️ **Chaque source porte un `uid` qui lui est propre**, et ne le change plus : ses dashboards s'y
