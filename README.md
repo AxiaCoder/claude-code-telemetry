@@ -251,6 +251,14 @@ effacer ses séries (`/api/v1/admin/tsdb/delete_series`).
 `collecteurs/hermes.py` pulse pour Hermès : il lit `~/.hermes/cron/ticker_last_success` et pousse
 `tache="hermes"`, 🟠 au-delà de 30 min.
 
+### Surveiller un site : `site_joignable`
+
+Une sonde externe, hors de ce dépôt, teste chaque site à chaque passe et pousse sur
+`/api/v1/import/prometheus` `site_joignable{cible="<nom>"} 1` (joignable) ou `0` (échec). La règle
+`SiteInjoignable` alerte 🔴, une alerte par cible, quand la dernière mesure est un échec depuis
+2 min. Une cible que la sonde ne pousse plus se résout 5 min après sa dernière mesure. Le geste se
+règle par cible dans `alertmanager/local/local.tmpl` (`geste.site`).
+
 ### Ajouter une alerte seuil
 
 Une règle dans `alertes.yml`, sur le modèle des autres : deux étiquettes, `famille` (le groupe du

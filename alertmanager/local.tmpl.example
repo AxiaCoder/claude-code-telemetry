@@ -16,3 +16,11 @@
 {{- else }}lire le log de la tâche {{ .Labels.tache }}, puis la relancer
 {{- end }}
 {{- end }}
+
+{{/* Table cible → geste, pour SiteInjoignable. Une branche par cible de la sonde. */}}
+{{ define "geste.site" -}}
+{{ if eq .Labels.cible "exemple" }}vérifier le conteneur de exemple sur <hôte>, puis le proxy
+{{- else if eq .Labels.cible "exemple-api" }}lire les logs de exemple-api, puis tester https://exemple.org/health
+{{- else }}vérifier le serveur et le proxy qui servent {{ .Labels.cible }}
+{{- end }}
+{{- end }}
