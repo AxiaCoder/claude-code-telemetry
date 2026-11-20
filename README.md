@@ -260,9 +260,11 @@ Une sonde externe, hors de ce dépôt, teste chaque site à chaque passe et pous
 règle par cible dans `alertmanager/local/local.tmpl` (`geste.site`).
 
 ⚠️ **Les passes de la sonde se suivent à moins de 5 min**, sinon une panne s'affiche en 🔴 puis
-✅ à chaque passe. ⇒ **La sonde pulse elle-même**, `pouls <sonde> 5m urgent` sur le succès de sa
-passe : une sonde arrêtée résout toutes ses cibles, panne en cours comprise, et plus rien n'alerte
-après.
+✅ à chaque passe. ⇒ **La sonde pulse elle-même**, `pouls <sonde> 5m urgent` à chaque passe
+terminée, sites en échec compris : une sonde arrêtée résout toutes ses cibles, panne en cours
+comprise, et plus rien n'alerte après. Le pouls ne fait que réduire ce trou : une panne en cours
+s'affiche ✅ pendant environ 5 min, entre la résolution (5 min après la dernière mesure) et la
+tâche muette (5 min de délai, puis 5 min de `for`).
 
 ### Ajouter une alerte seuil
 
