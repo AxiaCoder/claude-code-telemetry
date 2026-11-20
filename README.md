@@ -259,6 +259,11 @@ Une sonde externe, hors de ce dépôt, teste chaque site à chaque passe et pous
 2 min. Une cible que la sonde ne pousse plus se résout 5 min après sa dernière mesure. Le geste se
 règle par cible dans `alertmanager/local/local.tmpl` (`geste.site`).
 
+⚠️ **Les passes de la sonde se suivent à moins de 5 min**, sinon une panne s'affiche en 🔴 puis
+✅ à chaque passe. ⇒ **La sonde pulse elle-même**, `pouls <sonde> 5m urgent` sur le succès de sa
+passe : une sonde arrêtée résout toutes ses cibles, panne en cours comprise, et plus rien n'alerte
+après.
+
 ### Ajouter une alerte seuil
 
 Une règle dans `alertes.yml`, sur le modèle des autres : deux étiquettes, `famille` (le groupe du
