@@ -158,6 +158,31 @@ tests:
             exp_annotations:
               resume: "site exemple-api injoignable"
 
+  - name: SiteInjoignable stays silent while one series of the target still succeeds
+    interval: 1m
+    input_series:
+      - series: 'site_joignable{cible="exemple",sonde="a"}'
+        values: "1x20"
+      - series: 'site_joignable{cible="exemple",sonde="b"}'
+        values: "0x20"
+      - series: 'site_joignable{cible="exemple-api",sonde="a"}'
+        values: "0x20"
+      - series: 'site_joignable{cible="exemple-api",sonde="b"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts:
+          - exp_labels:
+              alertgroup: sites
+              alertname: SiteInjoignable
+              famille: sites
+              canal: urgent
+              cible: exemple-api
+            exp_annotations:
+              resume: "site exemple-api injoignable"
+
   - name: SiteInjoignable resolves once a target stops being pushed
     interval: 1m
     input_series:

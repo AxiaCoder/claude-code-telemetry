@@ -26,10 +26,11 @@ jobs:
           curl -fsSL "https://github.com/prometheus/alertmanager/releases/download/v${AM_VERSION}/alertmanager-${AM_VERSION}.linux-amd64.tar.gz" \
             | sudo tar -xz --strip-components=1 -C /usr/local/bin "alertmanager-${AM_VERSION}.linux-amd64/amtool"
 
-      - name: Unit tests (pouls, rules, collectors)
-        # VMALERT_TOOL set explicitly: the rules test must run here, never be skipped.
+      - name: Unit tests (pouls, rules, template, collectors)
+        # Tools set explicitly: the rules and template tests must run here, never be skipped.
         env:
           VMALERT_TOOL: /usr/local/bin/vmalert-tool-prod
+          AMTOOL: /usr/local/bin/amtool
         run: python -m unittest discover -s tests -v
 
       - name: Alertmanager configuration
