@@ -98,6 +98,114 @@ tests:
             exp_annotations:
               resume: "tâche retiree muette depuis 2h 10m 0s"
 
+  - name: SiteInjoignable fires per target after 2 minutes of failure and resolves on success
+    interval: 1m
+    input_series:
+      - series: 'site_joignable{cible="exemple"}'
+        values: "1x2 0x10 1x10"
+    alert_rule_test:
+      - eval_time: 4m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts: []
+      - eval_time: 5m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts:
+          - exp_labels:
+              alertgroup: sites
+              alertname: SiteInjoignable
+              famille: sites
+              canal: urgent
+              cible: exemple
+            exp_annotations:
+              resume: "site exemple injoignable"
+      - eval_time: 13m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts:
+          - exp_labels:
+              alertgroup: sites
+              alertname: SiteInjoignable
+              famille: sites
+              canal: urgent
+              cible: exemple
+            exp_annotations:
+              resume: "site exemple injoignable"
+      - eval_time: 14m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts: []
+
+  - name: SiteInjoignable names only the failing target
+    interval: 1m
+    input_series:
+      - series: 'site_joignable{cible="exemple"}'
+        values: "1x20"
+      - series: 'site_joignable{cible="exemple-api"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts:
+          - exp_labels:
+              alertgroup: sites
+              alertname: SiteInjoignable
+              famille: sites
+              canal: urgent
+              cible: exemple-api
+            exp_annotations:
+              resume: "site exemple-api injoignable"
+
+  - name: SiteInjoignable stays silent while one series of the target still succeeds
+    interval: 1m
+    input_series:
+      - series: 'site_joignable{cible="exemple",sonde="a"}'
+        values: "1x20"
+      - series: 'site_joignable{cible="exemple",sonde="b"}'
+        values: "0x20"
+      - series: 'site_joignable{cible="exemple-api",sonde="a"}'
+        values: "0x20"
+      - series: 'site_joignable{cible="exemple-api",sonde="b"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts:
+          - exp_labels:
+              alertgroup: sites
+              alertname: SiteInjoignable
+              famille: sites
+              canal: urgent
+              cible: exemple-api
+            exp_annotations:
+              resume: "site exemple-api injoignable"
+
+  - name: SiteInjoignable resolves once a target stops being pushed
+    interval: 1m
+    input_series:
+      - series: 'site_joignable{cible="retiree"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 14m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts:
+          - exp_labels:
+              alertgroup: sites
+              alertname: SiteInjoignable
+              famille: sites
+              canal: urgent
+              cible: retiree
+            exp_annotations:
+              resume: "site retiree injoignable"
+      - eval_time: 16m
+        groupname: sites
+        alertname: SiteInjoignable
+        exp_alerts: []
+
   - name: collection alerts fire after 30 minutes of failure
     interval: 1m
     input_series:

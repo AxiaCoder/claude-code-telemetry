@@ -5,7 +5,8 @@
 # - `canal` : `alertes` ou `urgent`, la route Slack.
 # Et deux annotations que lit le gabarit du message :
 # - `resume` : le constat, une phrase ;
-# - `geste` : quoi faire. Absente, le geste vient de la table `geste.tache` du gabarit local.
+# - `geste` : quoi faire. Absente, le geste vient du gabarit local : `geste.site` si l'alerte
+#   porte une etiquette `cible`, sinon `geste.tache`.
 
 groups:
   - name: taches
@@ -38,6 +39,20 @@ groups:
           famille: taches
         annotations:
           resume: "tâche {{ $labels.tache }} muette depuis {{ $value | humanizeDuration }}"
+
+  - name: sites
+    rules:
+      # Une alerte par cible dont la derniere mesure de la sonde externe est un echec (0).
+      # `last_over_time[5m]` : une cible que la sonde ne pousse plus (retiree de sa liste)
+      # sort de la fenetre en 5 min, et son alerte se resout au lieu de rester ouverte.
+      - alert: SiteInjoignable
+        expr: max by (cible) (last_over_time(site_joignable[5m])) == 0
+        for: 2m
+        labels:
+          famille: sites
+          canal: urgent
+        annotations:
+          resume: "site {{ $labels.cible }} injoignable"
 
   - name: collectes
     rules:

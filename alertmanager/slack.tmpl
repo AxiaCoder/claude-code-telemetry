@@ -1,4 +1,4 @@
-{{/* Gabarits du message Slack. Le dossier local/ peut redefinir canal.* et geste.tache. */}}
+{{/* Gabarits du message Slack. Le dossier local/ peut redefinir canal.*, geste.tache et geste.site. */}}
 
 {{/* Canaux par defaut, par nom : chat.postMessage accepte un nom de canal ou son identifiant. */}}
 {{ define "canal.alertes" }}#alertes{{ end }}
@@ -7,12 +7,15 @@
 {{/* Geste d'une tache muette, l'alerte en point. La table par tache est dans local/. */}}
 {{ define "geste.tache" }}lire le log de la tâche {{ .Labels.tache }}, puis la relancer{{ end }}
 
+{{/* Geste d'un site injoignable, l'alerte en point. La table par cible est dans local/. */}}
+{{ define "geste.site" }}vérifier le serveur et le proxy qui servent {{ .Labels.cible }}{{ end }}
+
 {{/* Une ligne par alerte : 🔴/🟠 <resume> → <geste> ; ✅ a la resolution. */}}
 {{ define "maison.ligne" -}}
 {{ if eq .Status "resolved" -}}
 ✅ résolu : {{ .Annotations.resume }}
 {{- else -}}
-{{ if eq .Labels.canal "urgent" }}🔴{{ else }}🟠{{ end }} {{ .Annotations.resume }} → {{ with .Annotations.geste }}{{ . }}{{ else }}{{ template "geste.tache" . }}{{ end }}
+{{ if eq .Labels.canal "urgent" }}🔴{{ else }}🟠{{ end }} {{ .Annotations.resume }} → {{ with .Annotations.geste }}{{ . }}{{ else }}{{ if .Labels.cible }}{{ template "geste.site" . }}{{ else }}{{ template "geste.tache" . }}{{ end }}{{ end }}
 {{- end }}
 {{- end }}
 
