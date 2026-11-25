@@ -461,8 +461,10 @@ Un service de plus, c'est deux montages de plus dans l'override — un sous `gra
 ⚠️ **vmalert ne lit que les fichiers `*.yml`** posés directement dans le dossier monté : un
 `.yaml`, ou un fichier dans un sous-dossier, est ignoré sans erreur.
 
-⚠️ **Un fichier de scrape est une liste de cibles, sans `scrape_configs:` autour** : VictoriaMetrics
-refuse de démarrer sur un fichier au format complet. Il se vérifie avant le `git pull` définitif :
+⚠️ **Un fichier de scrape est une liste de cibles, sans `scrape_configs:` autour**, posé
+directement dans le dossier monté, en `*.yml` (un `.yaml` ou un sous-dossier est ignoré sans
+erreur). Chaque `job_name` est unique **entre tous les services** : un doublon est refusé comme un
+format invalide.
 
 ```yaml
 # observabilite/scrapes/mon-service.yml
@@ -476,6 +478,14 @@ docker run --rm -v /srv/mon-service/observabilite/scrapes:/etc/scrapes/externe/m
   -v "$PWD/scrapes.yml:/etc/scrapes.yml:ro" victoriametrics/victoria-metrics:latest \
   -promscrape.config=/etc/scrapes.yml -promscrape.config.dryRun
 ```
+
+🔴 **Une config de scrape invalide, chez un seul service, empêche VictoriaMetrics de démarrer** :
+toute la base tombe, pas seulement les cibles de ce service. Métriques poussées perdues, Grafana
+vide, vmalert sans source, et aucune alerte pour le dire. À chaud, VictoriaMetrics refuse le
+rechargement et garde l'ancienne config, en ne le disant que dans ses logs ; c'est le redémarrage
+suivant (serveur relancé, `docker compose up -d`) qui casse. Le mieux est de vérifier dans la CI du
+dépôt du service, avant le push ; à défaut, sur le serveur **juste après** le `git pull` — la
+commande ci-dessus lit le clone du serveur —, et corriger avant tout redémarrage.
 
 🔴 **Un fichier de règles invalide, chez un seul service, coupe toutes les alertes au prochain
 démarrage de vmalert** — celles de ce dépôt comprises. À chaud, vmalert refuse le rechargement et
@@ -529,9 +539,12 @@ démarrage — voir `victoriametrics.yml`).
 
 ## Ce que cette pile ne fait pas
 
-- **Elle ne surveille pas l'hôte.** CPU, RAM, disque, état des conteneurs : c'est le travail d'un
-  autre outil, qu'on gagne à garder séparé — pour pouvoir casser celle-ci sans perdre la vue sur
-  la machine.
+- **Elle ne surveille pas l'hôte d'elle-même.** CPU, RAM, disque, état des conteneurs : la pile ne
+  porte ni cible ni règle pour ça. Un service branché peut les apporter (voir « Brancher un service
+  externe »), mais alors la vue sur la machine dépend de cette pile : si VictoriaMetrics tombe, elle
+  disparaît avec elle. Pour pouvoir casser la pile sans perdre toute vue sur la machine, garder à
+  part au moins une alerte qui ne passe pas par elle (un battement lu depuis une autre machine,
+  par exemple).
 - **Elle n'instrumente rien.** Ce sont les clients qui émettent.
 
 ## Inspiration
