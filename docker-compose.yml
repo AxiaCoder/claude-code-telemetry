@@ -10,6 +10,10 @@ services:
       - "${BIND_ADDR:-127.0.0.1}:8428:8428"
     volumes:
       - vm-data:/victoria-metrics-data
+      - ./scrapes.yml:/etc/scrapes.yml:ro
+      # Emplacement des services externes : vide ici, rempli par docker-compose.override.yml.
+      - type: tmpfs
+        target: /etc/scrapes/externe
     networks:
       default:
         # Adresse fixe : un emetteur confine du serveur ne rouvre qu'elle.
@@ -19,6 +23,9 @@ services:
       - "-httpListenAddr=:8428"
       # Mois, pas jours : on veut comparer un mois a l'autre.
       - "-retentionPeriod=12"
+      # Cibles des services externes, relues chaque minute (scrapes.yml ne porte que l'inclusion).
+      - "-promscrape.config=/etc/scrapes.yml"
+      - "-promscrape.configCheckInterval=1m"
 
   grafana:
     image: grafana/grafana:latest

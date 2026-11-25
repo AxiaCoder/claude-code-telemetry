@@ -1,0 +1,6 @@
+# Cibles a scraper. Ce fichier ne porte aucune cible : chaque service branche les
+# siennes dans un dossier monte par docker-compose.override.yml (voir « Brancher un
+# service externe »). Chaque fichier *.yml de ces dossiers est une liste de cibles,
+# sans `scrape_configs:` autour.
+scrape_config_files:
+  - /etc/scrapes/externe/*/*.yml
