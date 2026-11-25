@@ -6,7 +6,9 @@
 # Le dernier segment de la cible (mon-service) devient le nom du dossier dans Grafana.
 # create_host_path: false fait echouer docker compose up -d sur un chemin faux,
 # au lieu de creer un dossier vide et de demarrer sans rien charger.
-# Un service de plus : un montage de plus sous grafana, un sous vmalert.
+# Un service de plus : un montage de plus sous grafana, un sous vmalert, et un sous
+# victoriametrics s'il a des cibles a scraper (un fichier de scrape est une liste, sans
+# `scrape_configs:` autour).
 #
 # Un service qui apporte sa source de donnees (un fichier de provisioning) la monte
 # fichier par fichier dans /etc/grafana/provisioning/datasources ; s'il lui faut un
@@ -41,3 +43,11 @@ services:
         target: /etc/vmalert/externe/mon-service
         read_only: true
         bind: { create_host_path: false }
+  # Seulement si le service a des cibles a scraper :
+  # victoriametrics:
+  #   volumes:
+  #     - type: bind
+  #       source: /srv/mon-service/observabilite/scrapes
+  #       target: /etc/scrapes/externe/mon-service
+  #       read_only: true
+  #       bind: { create_host_path: false }

@@ -389,8 +389,10 @@ mon-service/
 └── observabilite/
     ├── dashboards/
     │   └── file-d-attente.json   ← exporté depuis Grafana (Partager → Exporter → JSON)
-    └── alertes/
-        └── mon-service.yml       ← règles au même format que alertes.yml
+    ├── alertes/
+    │   └── mon-service.yml       ← règles au même format que alertes.yml
+    └── scrapes/
+        └── mon-service.yml       ← cibles à scraper, si le service en a (voir plus bas)
 ```
 
 ⚠️ **À l'export, ne pas cocher « exporter pour une autre instance »** : Grafana remplace alors la
@@ -422,7 +424,17 @@ services:
         target: /etc/vmalert/externe/mon-service
         read_only: true
         bind: { create_host_path: false }
+  victoriametrics:
+    volumes:
+      - type: bind
+        source: /srv/mon-service/observabilite/scrapes
+        target: /etc/scrapes/externe/mon-service
+        read_only: true
+        bind: { create_host_path: false }
 ```
+
+Le montage `victoriametrics` ne sert qu'à un service qui expose des métriques à lire (un
+node-exporter, par exemple) ; un service qui pousse les siennes s'en passe.
 
 `source` est le chemin du dépôt du service sur le serveur. Dans `target`, le dernier segment
 (`mon-service`) devient le nom du dossier dans Grafana. `create_host_path: false` fait échouer
@@ -444,10 +456,36 @@ annotations `resume` et `geste` (voir [Ajouter une alerte seuil](#ajouter-une-al
 **4. Ensuite**, on modifie le JSON ou les règles dans le dépôt du service, puis `git pull` sur le
 serveur : Grafana recharge les dashboards en 30 secondes, vmalert relit les règles chaque minute.
 Un service de plus, c'est deux montages de plus dans l'override — un sous `grafana`, un sous
-`vmalert`.
+`vmalert` — et un troisième sous `victoriametrics` s'il a des cibles à scraper.
 
 ⚠️ **vmalert ne lit que les fichiers `*.yml`** posés directement dans le dossier monté : un
 `.yaml`, ou un fichier dans un sous-dossier, est ignoré sans erreur.
+
+⚠️ **Un fichier de scrape est une liste de cibles, sans `scrape_configs:` autour**, posé
+directement dans le dossier monté, en `*.yml` (un `.yaml` ou un sous-dossier est ignoré sans
+erreur). Chaque `job_name` est unique **entre tous les services** : un doublon est refusé comme un
+format invalide.
+
+```yaml
+# observabilite/scrapes/mon-service.yml
+- job_name: mon-service
+  static_configs:
+    - targets: ["host:9100"]
+```
+
+```bash
+docker run --rm -v /srv/mon-service/observabilite/scrapes:/etc/scrapes/externe/mon-service:ro \
+  -v "$PWD/scrapes.yml:/etc/scrapes.yml:ro" victoriametrics/victoria-metrics:latest \
+  -promscrape.config=/etc/scrapes.yml -promscrape.config.dryRun
+```
+
+🔴 **Une config de scrape invalide, chez un seul service, empêche VictoriaMetrics de démarrer** :
+toute la base tombe, pas seulement les cibles de ce service. Métriques poussées perdues, Grafana
+vide, vmalert sans source, et aucune alerte pour le dire. À chaud, VictoriaMetrics refuse le
+rechargement et garde l'ancienne config, en ne le disant que dans ses logs ; c'est le redémarrage
+suivant (serveur relancé, `docker compose up -d`) qui casse. Le mieux est de vérifier dans la CI du
+dépôt du service, avant le push ; à défaut, sur le serveur **juste après** le `git pull` — la
+commande ci-dessus lit le clone du serveur —, et corriger avant tout redémarrage.
 
 🔴 **Un fichier de règles invalide, chez un seul service, coupe toutes les alertes au prochain
 démarrage de vmalert** — celles de ce dépôt comprises. À chaud, vmalert refuse le rechargement et
@@ -501,9 +539,12 @@ démarrage — voir `victoriametrics.yml`).
 
 ## Ce que cette pile ne fait pas
 
-- **Elle ne surveille pas l'hôte.** CPU, RAM, disque, état des conteneurs : c'est le travail d'un
-  autre outil, qu'on gagne à garder séparé — pour pouvoir casser celle-ci sans perdre la vue sur
-  la machine.
+- **Elle ne surveille pas l'hôte d'elle-même.** CPU, RAM, disque, état des conteneurs : la pile ne
+  porte ni cible ni règle pour ça. Un service branché peut les apporter (voir « Brancher un service
+  externe »), mais alors la vue sur la machine dépend de cette pile : si VictoriaMetrics tombe, elle
+  disparaît avec elle. Pour pouvoir casser la pile sans perdre toute vue sur la machine, garder à
+  part au moins une alerte qui ne passe pas par elle (un battement lu depuis une autre machine,
+  par exemple).
 - **Elle n'instrumente rien.** Ce sont les clients qui émettent.
 
 ## Inspiration
